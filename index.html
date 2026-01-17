@@ -1,0 +1,614 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Uniswap V3 LP Strategy Backtester</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #0f172a; color: #e2e8f0; }
+        .input-group { display: flex; flex-direction: column; gap: 0.5rem; }
+        .input-field { background: #1e293b; border: 1px solid #334155; padding: 0.5rem; border-radius: 0.375rem; color: white; }
+        .btn { background: #3b82f6; padding: 0.75rem; border-radius: 0.375rem; font-weight: bold; cursor: pointer; transition: 0.2s; }
+        .btn:hover { background: #2563eb; }
+        .card { background: #1e293b; padding: 1.5rem; border-radius: 0.75rem; border: 1px solid #334155; }
+        .stat-label { color: #94a3b8; font-size: 0.875rem; }
+        .stat-value { font-size: 1.5rem; font-weight: bold; }
+        .text-green { color: #4ade80; }
+        .text-red { color: #f87171; }
+    </style>
+</head>
+<body class="p-4 md:p-8 max-w-7xl mx-auto">
+
+    <div class="mb-8">
+        <h1 class="text-3xl font-bold mb-2">LP Strategy Backtester (ETH/USDC)</h1>
+        <p class="text-slate-400">Simulate rebalancing strategies and compare Fees vs. Impermanent Loss.</p>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <!-- Configuration Panel -->
+        <div class="card h-fit">
+            <h2 class="text-xl font-bold mb-4 border-b border-slate-700 pb-2">Strategy Settings</h2>
+            
+            <div class="flex flex-col gap-4">
+                <div class="input-group">
+                    <label class="text-sm">Initial Capital ($)</label>
+                    <input type="number" id="initialCapital" value="10000" class="input-field">
+                </div>
+
+                <div class="input-group">
+                    <label class="text-sm">LP Range (+/- %)</label>
+                    <small class="text-slate-500">The width of your liquidity position.</small>
+                    <input type="number" id="rangePct" value="20" class="input-field">
+                </div>
+
+                <div class="input-group">
+                    <label class="text-sm">Rebalance Threshold (+/- %)</label>
+                    <small class="text-slate-500">Trigger rebalance if price moves this much.</small>
+                    <input type="number" id="rebalanceThreshold" value="15" class="input-field">
+                </div>
+
+                <div class="input-group">
+                    <label class="text-sm">Estimated APR (%)</label>
+                    <small class="text-slate-500">Fixed APR assumption for fees.</small>
+                    <input type="number" id="fixedApr" value="70" class="input-field">
+                </div>
+
+                <div class="input-group">
+                    <label class="text-sm">Candle Interval</label>
+                    <select id="candleInterval" class="input-field">
+                        <option value="1h">1 Hour</option>
+                        <option value="6h" selected>6 Hours</option>
+                        <option value="1d">1 Day</option>
+                    </select>
+                </div>
+
+                <div class="grid grid-cols-2 gap-2">
+                    <div class="input-group">
+                        <label class="text-sm">Start Date</label>
+                        <input type="date" id="startDate" class="input-field">
+                    </div>
+                    <div class="input-group">
+                        <label class="text-sm">End Date</label>
+                        <input type="date" id="endDate" class="input-field">
+                    </div>
+                </div>
+
+                <button onclick="runBacktest()" id="runBtn" class="btn text-center mt-2">
+                    Run Backtest
+                </button>
+                <p id="statusMsg" class="text-sm text-center text-yellow-400 min-h-[20px]"></p>
+            </div>
+        </div>
+
+        <!-- Results Panel -->
+        <div class="col-span-1 md:col-span-2 flex flex-col gap-6">
+            
+            <!-- Summary Stats -->
+            <!-- Changed grid-cols-4 to grid-cols-5 to fit the new card -->
+            <div class="grid grid-cols-2 md:grid-cols-5 gap-4">
+                <div class="card text-center">
+                    <div class="stat-label">Total Fees Earned</div>
+                    <div class="stat-value text-green-400" id="resFees">$0.00</div>
+                </div>
+                <div class="card text-center">
+                    <div class="stat-label">Final Portfolio Value</div>
+                    <div class="stat-value" id="resPortfolio">$0.00</div>
+                    <div class="text-xs text-slate-500">Initial: $<span id="resInitial">10000</span></div>
+                </div>
+                <div class="card text-center">
+                    <div class="stat-label">HODL (50/50)</div>
+                    <div class="stat-value text-blue-400" id="resHodl">$0.00</div>
+                    <div class="text-xs text-slate-500">Split Start</div>
+                </div>
+                <!-- New 100% ETH Card -->
+                <div class="card text-center">
+                    <div class="stat-label">HODL (100% ETH)</div>
+                    <div class="stat-value text-yellow-400" id="resHodl100">$0.00</div>
+                    <div class="text-xs text-slate-500">All-in Start</div>
+                </div>
+                <div class="card text-center">
+                    <div class="stat-label">Net vs HODL 50/50</div>
+                    <div class="stat-value" id="resDiff">$0.00</div>
+                    <div class="text-xs text-slate-500">Strategy Edge</div>
+                </div>
+            </div>
+
+            <!-- Charts -->
+            <div class="card flex-grow">
+                <canvas id="strategyChart"></canvas>
+            </div>
+            
+            <div class="card">
+                <h3 class="font-bold mb-2">Rebalance Log</h3>
+                <div class="overflow-y-auto max-h-48 text-sm text-slate-300">
+                    <table class="w-full text-left">
+                        <thead class="text-slate-500 border-b border-slate-700">
+                            <tr>
+                                <th class="pb-2">Date</th>
+                                <th class="pb-2">Action</th>
+                                <th class="pb-2">Price</th>
+                                <th class="pb-2">Reason</th>
+                            </tr>
+                        </thead>
+                        <tbody id="logBody">
+                            <!-- Logs go here -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+<script>
+    // --- Constants & Globals ---
+    let chartInstance = null;
+
+    // Set default dates
+    const today = new Date();
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(today.getDate() - 90);
+    
+    document.getElementById('endDate').valueAsDate = today;
+    document.getElementById('startDate').valueAsDate = thirtyDaysAgo;
+
+    // --- Math Utilities for Uniswap V3 (Simplified) ---
+
+    // Calculate Liquidity (L) given amount of currency and range
+    // Simplified: We assume we split capital optimally to cover the range at entry
+    // In a real V3 pool, L is derived from Amount0 and Amount1.
+    // For backtesting estimation:
+    // Value(L, P) approx = L * 2 * sqrt(P) (if P is well within range, roughly)
+    // We will track the actual Amount0 (USDC) and Amount1 (ETH) held.
+
+    function getLiquidityForAmounts(sqrtRatioX96, sqrtRatioAX96, sqrtRatioBX96, amount0, amount1) {
+        // This is complex V3 math. We will use a simplified "Portfolio Value" approach
+        // for a generic estimation tool without importing a massive heavy SDK.
+        
+        // Approach:
+        // 1. At entry, we convert Capital -> Eth + Usdc based on the current price and range.
+        // 2. We track the number of virtual ETH and USDC.
+        // 3. Current Value = value of those holdings at new price.
+        // 4. We assume we are always "In Range" for calculating value, 
+        //    because if we go out of range, we are 100% one asset.
+        
+        return 0; // Placeholder, we will use the logic inside the loop
+    }
+
+    // Helper to calculate V3 amounts
+    // P = Current Price, Pa = Lower Range, Pb = Upper Range
+    // Returns { ethAmount, usdcAmount } normalized to $1 value
+    function calculateV3Composition(P, Pa, Pb) {
+        const sqrtP = Math.sqrt(P);
+        const sqrtPa = Math.sqrt(Pa);
+        const sqrtPb = Math.sqrt(Pb);
+
+        // If P is below range, we hold 100% ETH
+        if (P <= Pa) return { ethWeight: 1.0, usdcWeight: 0.0 };
+        // If P is above range, we hold 100% USDC
+        if (P >= Pb) return { ethWeight: 0.0, usdcWeight: 1.0 };
+
+        // Inside range:
+        // The formulas for Liquidity L given amounts x (ETH) and y (USDC):
+        // x = L * (1/sqrtP - 1/sqrtPb)
+        // y = L * (sqrtP - sqrtPa)
+        
+        // We want to find the ratio of value held in x vs y.
+        // Value_x = x * P = L * P * (1/sqrtP - 1/sqrtPb)
+        // Value_y = y     = L * (sqrtP - sqrtPa)
+        
+        const valEth = P * (1/sqrtP - 1/sqrtPb);
+        const valUsdc = (sqrtP - sqrtPa);
+        
+        const totalVal = valEth + valUsdc;
+        return { ethWeight: valEth/totalVal, usdcWeight: valUsdc/totalVal };
+    }
+
+    // --- Main Logic ---
+
+    async function fetchBinanceData(symbol, interval, startTime, endTime) {
+        const limit = 1000;
+        let allData = [];
+        let currentStart = startTime;
+
+        while (true) {
+            const url = `https://api.binance.com/api/v3/klines?symbol=${symbol}&interval=${interval}&limit=${limit}&startTime=${currentStart}&endTime=${endTime}`;
+            try {
+                const response = await fetch(url);
+                const data = await response.json();
+                
+                if (!Array.isArray(data) || data.length === 0) break;
+
+                allData = allData.concat(data);
+                
+                const lastTime = data[data.length - 1][0];
+                currentStart = lastTime + 1; // Move to next candle
+
+                if (currentStart > endTime) break;
+                if (data.length < limit) break; // Reached end of available data
+
+            } catch (e) {
+                console.error("Error fetching data:", e);
+                throw new Error("Failed to fetch data from Binance.");
+            }
+        }
+        return allData;
+    }
+
+    async function runBacktest() {
+        const btn = document.getElementById('runBtn');
+        const status = document.getElementById('statusMsg');
+        const logTable = document.getElementById('logBody');
+        
+        // Clear logs immediately
+        logTable.innerHTML = "";
+        
+        btn.disabled = true;
+        btn.innerText = "Loading Data...";
+        status.innerText = "";
+
+        try {
+            // 1. Get Inputs
+            const capital = parseFloat(document.getElementById('initialCapital').value);
+            
+            // Update the UI to show the correct Initial amount
+            document.getElementById('resInitial').innerText = capital;
+
+            const rangePct = parseFloat(document.getElementById('rangePct').value) / 100;
+            const rebalanceThreshold = parseFloat(document.getElementById('rebalanceThreshold').value) / 100;
+            const aprAnnual = parseFloat(document.getElementById('fixedApr').value) / 100;
+            const interval = document.getElementById('candleInterval').value;
+            
+            const startStr = document.getElementById('startDate').value;
+            const endStr = document.getElementById('endDate').value;
+            const startDate = new Date(startStr).getTime();
+            const endDate = new Date(endStr).getTime();
+
+            if(startDate >= endDate) {
+                throw new Error("Start date must be before end date.");
+            }
+
+            // 2. Fetch Data
+            // Use selected interval
+            const rawData = await fetchBinanceData("ETHUSDC", interval, startDate, endDate);
+            if(rawData.length === 0) throw new Error("No data found for this range.");
+
+            // Process Data: [timestamp, open, high, low, close, ...]
+            const candles = rawData.map(d => ({
+                time: d[0],
+                open: parseFloat(d[1]),
+                high: parseFloat(d[2]),
+                low: parseFloat(d[3]),
+                close: parseFloat(d[4])
+            }));
+
+            // 3. Initialize Strategy State
+            let currentCapital = capital; // Value of LP position
+            let feesCollected = 0;
+            
+            // Initial Position
+            let entryPrice = candles[0].open;
+            
+            // HODL comparison: Assume we bought 50/50 ETH/USDC at start, or 100% ETH? 
+            // Usually HODL comparison depends on what you started with. 
+            // Let's assume we started with $USD Capital, and for HODL we bought ETH immediately.
+            // Or usually "HODL" in LP context means "Held the tokens I deposited".
+            // Since we rebalance, the "Tokens Deposited" changes. 
+            // To keep it clean: HODL Strategy = Buy ETH with 100% Capital at start and hold.
+            // Alternatively: HODL 50/50. Let's do HODL 50/50 as it's the fairer benchmark for IL.
+            let hodlEth = (capital * 0.5) / entryPrice;
+            let hodlUsdc = capital * 0.5;
+
+            // New: 100% ETH HODL Strategy
+            let hodl100EthAmount = capital / entryPrice;
+
+            // Strategy State
+            let rangeLow = entryPrice * (1 - rangePct);
+            let rangeHigh = entryPrice * (1 + rangePct);
+            let lastRebalancePrice = entryPrice;
+
+            // V3 Position Tracking (Simplified simulation)
+            // We simulate the value of the LP position relative to the price move
+            // V3 LP Value function V(P) roughly behaves like:
+            // If P changes, value changes.
+            // We need to track the "Entry Liquidity Value" vs "Current Value".
+            
+            // To simulate exact V3 math without a library:
+            // We track "virtual" token amounts in the current range.
+            let positionLiquidity = 0; // We'll just track dollar value and adjust for IL
+            
+            // Logs for chart
+            const history = [];
+            const rebalanceEvents = [];
+            
+            // Helper to calculate IL factor
+            // impermanentLoss(priceRatio) = (2 * sqrt(priceRatio)) / (1 + priceRatio) - 1
+            // This is for full range (Uniswap V2).
+            // For V3, IL is higher.
+            
+            // Better Simulation approach:
+            // At each rebalance (or start), we "mint" a V3 position.
+            // We calculate amounts x (ETH) and y (USDC) we put in based on Range and Current Price.
+            // At next step, we calculate new value of x and y at new price.
+            
+            let currentEthAmount = 0;
+            let currentUsdcAmount = 0;
+
+            function openPosition(price, amountUSD) {
+                const Pa = price * (1 - rangePct);
+                const Pb = price * (1 + rangePct);
+                const { ethWeight, usdcWeight } = calculateV3Composition(price, Pa, Pb);
+                
+                currentEthAmount = (amountUSD * ethWeight) / price;
+                currentUsdcAmount = amountUSD * usdcWeight;
+                
+                rangeLow = Pa;
+                rangeHigh = Pb;
+                lastRebalancePrice = price;
+            }
+
+            // Open initial
+            openPosition(entryPrice, currentCapital);
+
+            // 4. Iterate Days
+            for (let i = 0; i < candles.length; i++) {
+                const c = candles[i];
+                const price = c.close; // Use close price for daily valuation
+
+                // --- A. Calculate Current Position Value ---
+                // We need to determine the value of our holdings given the price move inside the V3 range
+                // Standard V3 formulas for Amount(P):
+                // If P < Pa: pure ETH. Amount = L * (1/sqrt(Pa) - 1/sqrt(Pb)). Value = Amount * P
+                // If P > Pb: pure USDC. Amount = L * (sqrt(Pb) - sqrt(Pa)). Value = Amount
+                // If Pa < P < Pb: Mix.
+                
+                // Let's derive L from our initial deposit amounts
+                const sqrtP_entry = Math.sqrt(lastRebalancePrice);
+                const sqrtPa = Math.sqrt(rangeLow);
+                const sqrtPb = Math.sqrt(rangeHigh);
+                
+                // Calculate Liquidity L based on what we deposited
+                // We know: currentUsdcAmount = L * (sqrtP - sqrtPa) -> L = usdc / (...)
+                // We take the L from whichever asset was limiting or sum them?
+                // Actually, since we split optimally, we can compute L from either if we ignore rounding.
+                // L = amount / delta_sqrt_price
+                
+                // L calculation is tricky if we are exactly at center or not. 
+                // Let's use the full liquidity formula derived from total value.
+                // Value = L * (P * (1/sqrtP - 1/sqrtPb) + (sqrtP - sqrtPa)) (if in range)
+                
+                // To avoid complexity, we can use the "Unbounded" IL formula * Multiplier? No, too inaccurate.
+                // Let's stick to tracking Value.
+                
+                // We need L to calculate current value.
+                // L = currentUsdcAmount / (sqrtP_entry - sqrtPa)  (If we hold USDC)
+                // L = currentEthAmount / (1/sqrtP_entry - 1/sqrtPb) (If we hold ETH)
+                
+                // Robust L calculation:
+                let L = 0;
+                if (currentUsdcAmount > 0 && currentEthAmount > 0) {
+                     L = currentUsdcAmount / (sqrtP_entry - sqrtPa); 
+                } else if (currentUsdcAmount > 0) {
+                     L = currentUsdcAmount / (sqrtP_entry - sqrtPa);
+                } else {
+                     L = currentEthAmount / (1/sqrtP_entry - 1/sqrtPb);
+                }
+
+                // Now calculate value at NEW Price (P_new)
+                const P_new = price;
+                const sqrtP_new = Math.sqrt(P_new);
+                let valEth = 0;
+                let valUsdc = 0;
+
+                if (P_new <= rangeLow) {
+                    // Price dropped below range -> We are 100% ETH
+                    // Amount ETH = L * (1/sqrtPa - 1/sqrtPb)
+                    const heldEth = L * (1/sqrtPa - 1/sqrtPb);
+                    valEth = heldEth * P_new;
+                    valUsdc = 0;
+                } else if (P_new >= rangeHigh) {
+                    // Price rose above range -> We are 100% USDC
+                    // Amount USDC = L * (sqrtPb - sqrtPa)
+                    const heldUsdc = L * (sqrtPb - sqrtPa);
+                    valEth = 0;
+                    valUsdc = heldUsdc;
+                } else {
+                    // In Range
+                    // Eth = L * (1/sqrtP_new - 1/sqrtPb)
+                    // Usdc = L * (sqrtP_new - sqrtPa)
+                    valEth = (L * (1/sqrtP_new - 1/sqrtPb)) * P_new;
+                    valUsdc = L * (sqrtP_new - sqrtPa);
+                }
+
+                currentCapital = valEth + valUsdc;
+
+                // --- B. Accrue Fees ---
+                // Fees = Capital * (APR / 365)
+                // Adjust for interval periods
+                let periodsPerDay = 1;
+                if (interval === '1h') periodsPerDay = 24;
+                if (interval === '6h') periodsPerDay = 4;
+                if (interval === '1d') periodsPerDay = 1;
+
+                const periodFee = currentCapital * (aprAnnual / (365 * periodsPerDay));
+                feesCollected += periodFee;
+
+                // --- C. Check Rebalance ---
+                // "if price drop by +-15%" -> from *lastRebalancePrice*
+                const priceChangePct = (price - lastRebalancePrice) / lastRebalancePrice;
+                
+                let action = "Hold";
+                
+                // Check Bounds
+                const hitLower = priceChangePct <= -rebalanceThreshold;
+                const hitUpper = priceChangePct >= rebalanceThreshold;
+
+                if (hitLower || hitUpper) {
+                    // REBALANCE
+                    // 1. We "realize" the currentCapital (which includes the IL).
+                    // 2. We add accumulated fees to capital? 
+                    //    Strategy: Compound fees? Or keep separate?
+                    //    Usually fees are claimed. Let's assume we Auto-Compound (add to principal) for max efficiency simulation.
+                    
+                    // Option: Auto-Compound
+                    currentCapital += periodFee; 
+                    feesCollected -= periodFee; // moved to capital, so we don't double count in final sum
+                    // (But for stats display, we keep a running total of 'Fees Generated')
+                    // Let's just track Total Fees Generated separately for display, but effectively compound them into the position
+                    // for the next step.
+                    
+                    openPosition(price, currentCapital);
+                    
+                    action = "Rebalance";
+                    rebalanceEvents.push({ index: i, price: price, type: hitLower ? "Lower" : "Upper" });
+
+                    // Log
+                    const row = `<tr>
+                        <td class="text-slate-400 py-1">${new Date(c.time).toLocaleString()}</td>
+                        <td class="text-yellow-400 font-bold">Rebalance</td>
+                        <td>$${price.toFixed(2)}</td>
+                        <td class="text-xs text-slate-400">${(priceChangePct*100).toFixed(2)}% move</td>
+                    </tr>`;
+                    logTable.innerHTML += row;
+                } else {
+                    // Just compound the fees conceptually or keep them separate?
+                    // To simplify: Fees sit in wallet (linear accumulation), Position sits in pool.
+                    // This is safer as fees aren't automatically compounded in Uni V3.
+                }
+
+                // --- D. Track HODL ---
+                // 50/50 HODL Strategy Value
+                const currentHodlVal = (hodlEth * price) + hodlUsdc;
+                
+                // 100% ETH HODL Strategy Value
+                const currentHodl100Val = hodl100EthAmount * price;
+
+                history.push({
+                    date: new Date(c.time).toLocaleString(),
+                    lpValue: currentCapital + feesCollected, // Total Portfolio Value
+                    hodlValue: currentHodlVal,
+                    hodl100Value: currentHodl100Val,
+                    price: price,
+                    fees: feesCollected
+                });
+            }
+
+            // 5. Render Results
+            const finalVal = currentCapital + feesCollected;
+            const finalHodl = (hodlEth * candles[candles.length-1].close) + hodlUsdc;
+            const finalHodl100 = hodl100EthAmount * candles[candles.length-1].close;
+            const diff = finalVal - finalHodl;
+
+            document.getElementById('resFees').innerText = `$${history[history.length-1].fees.toFixed(2)}`;
+            document.getElementById('resPortfolio').innerText = `$${finalVal.toFixed(2)}`;
+            document.getElementById('resHodl').innerText = `$${finalHodl.toFixed(2)}`;
+            document.getElementById('resHodl100').innerText = `$${finalHodl100.toFixed(2)}`;
+            
+            const diffEl = document.getElementById('resDiff');
+            diffEl.innerText = `${diff >= 0 ? '+' : ''}$${diff.toFixed(2)}`;
+            diffEl.className = `stat-value ${diff >= 0 ? 'text-green' : 'text-red'}`;
+
+            // 6. Draw Chart
+            renderChart(history, rebalanceEvents);
+
+        } catch (err) {
+            status.innerText = err.message;
+            console.error(err);
+        } finally {
+            btn.disabled = false;
+            btn.innerText = "Run Backtest";
+        }
+    }
+
+    function renderChart(history, events) {
+        const ctx = document.getElementById('strategyChart').getContext('2d');
+        if (chartInstance) chartInstance.destroy();
+
+        const labels = history.map(h => h.date);
+        const lpData = history.map(h => h.lpValue);
+        const hodlData = history.map(h => h.hodlValue);
+        const hodl100Data = history.map(h => h.hodl100Value);
+        
+        // Prepare annotations (vertical lines for rebalances)
+        // Chart.js annotations plugin is heavy, we'll just use points on a separate scatter dataset?
+        // Or simpler: just standard lines.
+        
+        chartInstance = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: [
+                    {
+                        label: 'LP Strategy Value',
+                        data: lpData,
+                        borderColor: '#4ade80',
+                        backgroundColor: 'rgba(74, 222, 128, 0.1)',
+                        borderWidth: 2,
+                        fill: true,
+                        tension: 0.1
+                    },
+                    {
+                        label: 'HODL (50/50)',
+                        data: hodlData,
+                        borderColor: '#60a5fa',
+                        borderWidth: 2,
+                        borderDash: [5, 5],
+                        fill: false,
+                        tension: 0.1
+                    },
+                    {
+                        label: 'HODL (100% ETH)',
+                        data: hodl100Data,
+                        borderColor: '#facc15', // Yellow-400
+                        borderWidth: 2,
+                        borderDash: [2, 2],
+                        fill: false,
+                        tension: 0.1
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: {
+                    mode: 'index',
+                    intersect: false,
+                },
+                plugins: {
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                let label = context.dataset.label || '';
+                                if (label) {
+                                    label += ': ';
+                                }
+                                if (context.parsed.y !== null) {
+                                    label += new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(context.parsed.y);
+                                }
+                                return label;
+                            }
+                        }
+                    },
+                    legend: {
+                        labels: { color: '#cbd5e1' }
+                    }
+                },
+                scales: {
+                    x: {
+                        ticks: { color: '#94a3b8', maxTicksLimit: 10 },
+                        grid: { color: '#334155' }
+                    },
+                    y: {
+                        ticks: { color: '#94a3b8' },
+                        grid: { color: '#334155' }
+                    }
+                }
+            }
+        });
+    }
+
+</script>
+</body>
+</html>
