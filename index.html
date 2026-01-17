@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Uniswap V3 LP Strategy Backtester</title>
+    <title>LmouL LP Strategy Backtester</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
@@ -167,8 +167,8 @@
             <!-- Summary Stats -->
             <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
                 <div class="card text-center px-2">
-                    <div class="stat-label">Total Fees</div>
-                    <div class="stat-value text-emerald-600 text-xl" id="resFees">$0.00</div>
+                    <div class="stat-label">Initial Capital</div>
+                    <div class="stat-value text-stone-300 text-xl" id="resInitialDisplay">$0.00</div>
                 </div>
                 <div class="card text-center px-2">
                     <div class="stat-label">LP Portfolio</div>
@@ -525,6 +525,8 @@
             // Inputs
             const capital = parseFloat(document.getElementById('initialCapital').value);
             document.getElementById('resInitial').innerText = capital;
+            // Update display box for Initial Capital
+            document.getElementById('resInitialDisplay').innerText = `$${capital.toFixed(2)}`;
 
             const token = document.getElementById('tokenSelect').value;
             currentTokenSymbol = token;
@@ -698,7 +700,9 @@
                 dcaMonthlyLabel: dcaMonthly.label
             };
 
-            document.getElementById('resFees').innerText = `$${feesCollected.toFixed(2)}`;
+            // Remove Fees Box update logic
+            // document.getElementById('resFees').innerText = ...; 
+
             document.getElementById('resPortfolio').innerText = `$${finalVal.toFixed(2)}`;
             document.getElementById('resHodl').innerText = `$${finalHodl.toFixed(2)}`;
             document.getElementById('resHodl100').innerText = `$${finalHodl100.toFixed(2)}`;
@@ -835,7 +839,8 @@
             ctx.fillText('Performance Results', boxX + 40, resY + 50);
 
             // Result Columns
-            const fees = document.getElementById('resFees').innerText;
+            // Changed FEES to INITIAL CAP
+            const initCap = document.getElementById('resInitialDisplay').innerText;
             const pf = document.getElementById('resPortfolio').innerText;
             const h50 = document.getElementById('resHodl').innerText;
             const h100 = document.getElementById('resHodl100').innerText;
@@ -847,9 +852,9 @@
             const r2y = resY + 230;
             const c1 = boxX + 50, c2 = boxX + 420, c3 = boxX + 790;
 
-            // Fees
-            ctx.fillStyle = mutedText; ctx.fillText('Total Fees Earned', c1, r1y);
-            ctx.fillStyle = emerald; ctx.font = 'bold 40px sans-serif'; ctx.fillText(fees, c1, r1y + 50); 
+            // Initial Cap
+            ctx.fillStyle = mutedText; ctx.fillText('Initial Capital', c1, r1y);
+            ctx.fillStyle = highlightText; ctx.font = 'bold 40px sans-serif'; ctx.fillText(initCap, c1, r1y + 50); 
 
             // Portfolio
             ctx.font = '24px sans-serif'; ctx.fillStyle = mutedText; ctx.fillText('Final LP Value', c2, r1y);
