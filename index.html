@@ -281,7 +281,7 @@
         dcaMonthlyLabel: ''
     };
     
-    let comparisonMode = 0; // 0: Hodl50, 1: Hodl100, 2: DCA
+    let comparisonMode = 0; // 0: Hodl100, 1: DCA
     let dcaMode = 0; // 0: Daily, 1: Weekly, 2: Monthly
 
     // Defaults
@@ -423,7 +423,7 @@
     }
 
     function toggleComparison() {
-        comparisonMode = (comparisonMode + 1) % 3;
+        comparisonMode = (comparisonMode + 1) % 2; // Cycle between 0 and 1 (Removed 50/50)
         updateComparisonDisplay();
     }
 
@@ -435,9 +435,6 @@
         let labelText = "";
         
         if (comparisonMode === 0) {
-            compareVal = finalResults.hodl50;
-            labelText = "LP vs HODL (50/50)";
-        } else if (comparisonMode === 1) {
             compareVal = finalResults.hodl100;
             labelText = `LP vs HODL (100% ${currentTokenSymbol})`;
         } else {
@@ -452,9 +449,10 @@
         labelEl.innerText = labelText;
         valEl.innerText = `${diff >= 0 ? '+' : ''}$${diff.toFixed(2)}`;
         
+        // Dynamic class colors for JS-controlled element
         valEl.className = `stat-value text-xl transition-transform duration-200 group-active:scale-95`;
-        if (diff >= 0) valEl.style.color = '#34d399'; 
-        else valEl.style.color = '#f87171'; 
+        if (diff >= 0) valEl.style.color = '#34d399'; // Emerald-400
+        else valEl.style.color = '#f87171'; // Red-400
     }
 
     async function fetchBinanceData(symbol, interval, startTime, endTime) {
@@ -847,20 +845,16 @@
 
             // 4. Results Box
             const resY = boxY + boxH + 40;
-            const resH = 320;
+            const resH = 400; // Increased height to accommodate inner boxes nicely
             
-            ctx.fillStyle = boxColor;
-            ctx.strokeStyle = borderColor;
-            ctx.beginPath();
-            ctx.roundRect(boxX, resY, boxW, resH, 20);
-            ctx.fill();
-            ctx.stroke();
-
+            // Draw Main Results Container (Optional background, maybe transparent or same boxColor)
+            // We will draw individual boxes instead of one big text block
+            
             ctx.font = 'bold 32px sans-serif';
             ctx.fillStyle = highlightText;
-            ctx.fillText('Performance Results', boxX + 40, resY + 50);
+            ctx.fillText('Performance Results', boxX + 10, resY - 15);
 
-            // Result Columns
+            // Data Preparation
             const initCap = document.getElementById('resInitialDisplay').innerText;
             const pf = document.getElementById('resPortfolio').innerText;
             const winnerName = document.getElementById('resWinnerName').innerText;
@@ -868,46 +862,88 @@
             const h100 = document.getElementById('resHodl100').innerText;
             const dca = document.getElementById('resDca').innerText;
             
-            ctx.font = '24px sans-serif';
-            
-            const r1y = resY + 120;
-            const r2y = resY + 230;
-            const c1 = boxX + 50, c2 = boxX + 420, c3 = boxX + 790;
+            // Comparison Data
+            const diffLabel = document.getElementById('diffLabel').innerText;
+            const diffVal = document.getElementById('resDiff').innerText;
+            const diffIsPos = diffVal.includes('+');
 
-            // R1C1: Initial Cap
-            ctx.fillStyle = mutedText; ctx.fillText('Initial Capital', c1, r1y);
-            ctx.fillStyle = highlightText; ctx.font = 'bold 40px sans-serif'; ctx.fillText(initCap, c1, r1y + 50); 
-
-            // R1C2: Portfolio
-            ctx.font = '24px sans-serif'; ctx.fillStyle = mutedText; ctx.fillText('Final LP Value', c2, r1y);
-            ctx.fillStyle = highlightText; ctx.font = 'bold 40px sans-serif'; ctx.fillText(pf, c2, r1y + 50);
-
-            // R1C3: Winner
-            ctx.font = '24px sans-serif'; ctx.fillStyle = amber; ctx.fillText('🏆 Winner', c3, r1y);
-            ctx.fillStyle = amber; ctx.font = 'bold 36px sans-serif'; ctx.fillText(winnerName, c3, r1y + 40); // Name
-            ctx.font = '28px sans-serif'; ctx.fillStyle = mutedText; ctx.fillText(winnerVal, c3, r1y + 75); // Val
-
-            // R2C1: HODL 100
-            ctx.font = '24px sans-serif'; ctx.fillStyle = mutedText; ctx.fillText(`HODL (100% ${token})`, c1, r2y);
-            ctx.fillStyle = amber; ctx.font = 'bold 40px sans-serif'; ctx.fillText(h100, c1, r2y + 50);
-
-            // R2C2: DCA
             let dcaTxt = "DCA";
             if(dcaMode === 0) dcaTxt += " (Daily)";
             else if(dcaMode === 1) dcaTxt += " (Weekly)";
             else dcaTxt += " (Monthly)";
 
-            ctx.font = '24px sans-serif'; ctx.fillStyle = mutedText; ctx.fillText(dcaTxt, c2, r2y);
-            ctx.fillStyle = violet; ctx.font = 'bold 40px sans-serif'; ctx.fillText(dca, c2, r2y + 50);
+            // Grid Config
+            const cols = 3;
+            const rows = 2;
+            const gap = 20;
+            const cardW = (boxW - (gap * (cols - 1))) / cols;
+            const cardH = (resH - gap) / rows;
             
-            // R2C3: Comparison (LP vs DCA usually, or logic from mode)
-            // Let's print the Diff currently shown in the box
-            const diffLabel = document.getElementById('diffLabel').innerText;
-            const diffVal = document.getElementById('resDiff').innerText;
-            const diffIsPos = diffVal.includes('+');
+            // Helper to draw result card
+            function drawCard(c, r, label, value, valueColor, isWinnerCard = false) {
+                const cx = boxX + (c * (cardW + gap));
+                const cy = resY + (r * (cardH + gap));
+                
+                ctx.fillStyle = isWinnerCard ? 'rgba(69, 21, 10, 0.5)' : boxColor; // Amber tint for winner?
+                if(isWinnerCard) ctx.fillStyle = '#451a03'; // deeply dark amber bg
+                
+                ctx.strokeStyle = isWinnerCard ? amber : borderColor;
+                ctx.lineWidth = 2;
+                
+                ctx.beginPath();
+                ctx.roundRect(cx, cy, cardW, cardH, 15);
+                ctx.fill();
+                ctx.stroke();
+                
+                // Text Centering
+                ctx.textAlign = 'center';
+                
+                // Label
+                ctx.font = '500 20px sans-serif';
+                ctx.fillStyle = isWinnerCard ? '#fbbf24' : mutedText;
+                ctx.fillText(label, cx + cardW/2, cy + 45);
+                
+                // Value
+                // Adjust font size based on length?
+                ctx.font = 'bold 36px sans-serif';
+                ctx.fillStyle = valueColor;
+                ctx.fillText(value, cx + cardW/2, cy + 100);
+            }
+
+            // Row 1
+            drawCard(0, 0, "Initial Capital", initCap, highlightText);
+            drawCard(1, 0, "Final LP Value", pf, highlightText);
             
-            ctx.font = '24px sans-serif'; ctx.fillStyle = mutedText; ctx.fillText(diffLabel, c3, r2y);
-            ctx.fillStyle = diffIsPos ? emerald : rose; ctx.font = 'bold 40px sans-serif'; ctx.fillText(diffVal, c3, r2y + 50);
+            // Winner Card (Custom logic for 2nd line of text)
+            // We draw manually to fit two lines (Name + Value)
+            const cxWin = boxX + (2 * (cardW + gap));
+            const cyWin = resY;
+            ctx.fillStyle = 'rgba(120, 53, 15, 0.2)'; // Amber-900 tint
+            ctx.strokeStyle = 'rgba(245, 158, 11, 0.3)'; // Amber-500 tint
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.roundRect(cxWin, cyWin, cardW, cardH, 15);
+            ctx.fill();
+            ctx.stroke();
+            
+            ctx.textAlign = 'center';
+            ctx.font = '500 20px sans-serif';
+            ctx.fillStyle = '#fbbf24'; // Amber-400
+            ctx.fillText("🏆 Winner", cxWin + cardW/2, cyWin + 35);
+            
+            ctx.font = 'bold 28px sans-serif';
+            ctx.fillStyle = '#fcd34d'; // Amber-300
+            ctx.fillText(winnerName, cxWin + cardW/2, cyWin + 80);
+            
+            ctx.font = '24px sans-serif';
+            ctx.fillStyle = mutedText;
+            ctx.fillText(winnerVal, cxWin + cardW/2, cyWin + 120);
+
+
+            // Row 2
+            drawCard(0, 1, `HODL (100% ${token})`, h100, amber);
+            drawCard(1, 1, dcaTxt, dca, violet);
+            drawCard(2, 1, diffLabel, diffVal, diffIsPos ? emerald : rose);
 
 
             // 5. Chart
@@ -917,7 +953,7 @@
             
             await new Promise(r => chartImg.onload = r);
             
-            const chartY = resY + resH + 40;
+            const chartY = resY + (cardH * 2) + gap + 40;
             const chartH = height - chartY - 120; 
             const chartW = width - 100;
             
