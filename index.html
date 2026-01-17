@@ -10,7 +10,7 @@
         /* Single Dark Theme (Warm Stone) */
         :root {
             --bg-color: #1c1917; /* Stone-900 */
-            --text-main: #1c1917; /* Stone-200 */
+            --text-main: #e7e5e4; /* Stone-200 */
             --text-muted: #a8a29e; /* Stone-400 */
             --card-bg: #292524; /* Stone-800 */
             --card-border: #44403c; /* Stone-700 */
@@ -22,18 +22,6 @@
             --scroll-track: #292524;
             --scroll-thumb: #57534e;
         }
-
-        /* Specific text color overrides for dark bg compatibility */
-        .text-stone-800 { color: #f5f5f4; }
-        .text-stone-700 { color: #e7e5e4; }
-        .text-stone-600 { color: #d6d3d1; }
-        .text-stone-500 { color: #a8a29e; }
-        .text-stone-400 { color: #78716c; }
-        
-        .border-stone-200 { border-color: #44403c; }
-        .border-stone-300 { border-color: #57534e; }
-        
-        .hover\:bg-stone-50:hover { background-color: #44403c; }
 
         /* Brighten stats for dark mode */
         .text-emerald-600 { color: #34d399; } /* Emerald-400 */
@@ -92,17 +80,17 @@
 </head>
 <body class="p-4 md:p-8 max-w-7xl mx-auto">
 
-    <div class="mb-8 border-b border-stone-300 pb-4 flex justify-between items-start">
+    <div class="mb-8 border-b border-stone-700 pb-4 flex justify-between items-start">
         <div>
-            <h1 class="text-3xl font-bold mb-2 text-stone-800">LP Strategy Backtester</h1>
-            <p class="text-stone-500">Simulate rebalancing strategies and compare Fees vs. Impermanent Loss vs. DCA.</p>
+            <h1 class="text-3xl font-bold mb-2 text-stone-100">LP Strategy Backtester</h1>
+            <p class="text-stone-400">Simulate rebalancing strategies and compare Fees vs. Impermanent Loss vs. DCA.</p>
         </div>
     </div>
 
     <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
         <!-- Configuration Panel -->
         <div class="card h-fit">
-            <h2 class="text-xl font-bold mb-4 border-b border-stone-200 pb-2 text-stone-800">Strategy Settings</h2>
+            <h2 class="text-xl font-bold mb-4 border-b border-stone-600 pb-2 text-stone-100">Strategy Settings</h2>
             
             <div class="flex flex-col gap-4">
                 <!-- Token Selector -->
@@ -184,7 +172,7 @@
                 </div>
                 <div class="card text-center px-2">
                     <div class="stat-label">LP Portfolio</div>
-                    <div class="stat-value text-stone-800 text-xl" id="resPortfolio">$0.00</div>
+                    <div class="stat-value text-stone-100 text-xl" id="resPortfolio">$0.00</div>
                     <div class="text-[10px] text-stone-400">Start: $<span id="resInitial">10000</span></div>
                 </div>
                 <div class="card text-center px-2">
@@ -197,27 +185,27 @@
                 </div>
                 
                 <!-- DCA Card (Interactive) -->
-                <div onclick="toggleDcaMode()" class="card text-center px-2 cursor-pointer transition-all duration-300 hover:bg-stone-50 hover:border-purple-300 hover:shadow-md border border-stone-200 relative group select-none">
+                <div onclick="toggleDcaMode()" class="card text-center px-2 cursor-pointer transition-all duration-300 hover:bg-stone-700 hover:border-purple-300 hover:shadow-md border border-stone-600 relative group select-none">
                     <div class="absolute top-1 right-1 text-stone-300 group-hover:text-purple-400 transition-colors">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
                         </svg>
                     </div>
-                    <div class="stat-label group-hover:text-purple-600 transition-colors" id="dcaLabel">DCA Value (Daily)</div>
+                    <div class="stat-label group-hover:text-purple-400 transition-colors" id="dcaLabel">DCA Value (Daily)</div>
                     <div class="stat-value text-purple-600 text-xl transition-transform duration-200 group-active:scale-95" id="resDca">$0.00</div>
                     <div class="text-[10px] text-stone-400 mt-1" id="dcaDetails">N/A</div>
                 </div>
                 
                 <!-- Interactive Comparison Card -->
-                <div onclick="toggleComparison()" class="card text-center px-2 cursor-pointer transition-all duration-300 hover:bg-stone-50 hover:border-blue-300 hover:shadow-md border border-stone-200 relative group select-none">
+                <div onclick="toggleComparison()" class="card text-center px-2 cursor-pointer transition-all duration-300 hover:bg-stone-700 hover:border-blue-300 hover:shadow-md border border-stone-600 relative group select-none">
                     <div class="absolute top-1 right-1 text-stone-300 group-hover:text-blue-400 transition-colors">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
                         </svg>
                     </div>
-                    <div class="stat-label group-hover:text-blue-600 transition-colors" id="diffLabel">LP vs HODL</div>
+                    <div class="stat-label group-hover:text-blue-400 transition-colors" id="diffLabel">LP vs HODL</div>
                     <div class="stat-value text-xl transition-transform duration-200 group-active:scale-95" id="resDiff">$0.00</div>
-                    <div class="text-[10px] text-stone-400 mt-1 group-hover:text-stone-500">Click to switch</div>
+                    <div class="text-[10px] text-stone-400 mt-1 group-hover:text-stone-300">Click to switch</div>
                 </div>
             </div>
 
@@ -227,10 +215,10 @@
             </div>
             
             <div class="card">
-                <h3 class="font-bold mb-2 text-stone-800">Rebalance Log</h3>
-                <div class="overflow-y-auto max-h-48 text-sm text-stone-600">
+                <h3 class="font-bold mb-2 text-stone-200">Rebalance Log</h3>
+                <div class="overflow-y-auto max-h-48 text-sm text-stone-300">
                     <table class="w-full text-left">
-                        <thead class="text-stone-400 border-b border-stone-200">
+                        <thead class="text-stone-400 border-b border-stone-600">
                             <tr>
                                 <th class="pb-2">Date</th>
                                 <th class="pb-2">Action</th>
@@ -247,10 +235,10 @@
 
             <!-- New DCA Log -->
             <div class="card">
-                <h3 class="font-bold mb-2 text-stone-800" id="dcaLogTitle">DCA Buy Log (Daily)</h3>
-                <div class="overflow-y-auto max-h-48 text-sm text-stone-600">
+                <h3 class="font-bold mb-2 text-stone-200" id="dcaLogTitle">DCA Buy Log (Daily)</h3>
+                <div class="overflow-y-auto max-h-48 text-sm text-stone-300">
                     <table class="w-full text-left">
-                        <thead class="text-stone-400 border-b border-stone-200">
+                        <thead class="text-stone-400 border-b border-stone-600">
                             <tr>
                                 <th class="pb-2">Date</th>
                                 <th class="pb-2">Bought</th>
@@ -368,23 +356,23 @@
         else logs = globalDcaLogs.monthly;
 
         // Dark Theme Colors
-        const dateColor = 'text-stone-500';
+        const dateColor = 'text-stone-400';
         const valColor = 'text-stone-300';
 
         // Show last 50 entries or all? Let's show all but it scrolls
         logs.forEach(log => {
             const row = `<tr>
                 <td class="${dateColor} py-1">${new Date(log.time).toLocaleDateString()}</td>
-                <td class="text-purple-600 font-medium">+${log.bought.toFixed(4)} ${currentTokenSymbol}</td>
+                <td class="text-purple-400 font-medium">+${log.bought.toFixed(4)} ${currentTokenSymbol}</td>
                 <td class="${valColor}">$${log.price.toFixed(2)}</td>
                 <td class="${valColor}">$${log.totalValue.toFixed(2)}</td>
-                <td class="text-xs text-stone-400">${log.cashPct.toFixed(1)}%</td>
+                <td class="text-xs text-stone-500">${log.cashPct.toFixed(1)}%</td>
             </tr>`;
             tbody.innerHTML += row;
         });
         
         if(logs.length === 0) {
-             tbody.innerHTML = `<tr><td colspan="5" class="text-center py-4 text-stone-400">No buys triggered yet.</td></tr>`;
+             tbody.innerHTML = `<tr><td colspan="5" class="text-center py-4 text-stone-500">No buys triggered yet.</td></tr>`;
         } else if (globalHistory.length > 0) {
             // Add Final Value Row to match the Summary Box
             // This explains the difference between the last buy value and the final portfolio value
@@ -394,7 +382,7 @@
             else if (dcaMode === 1) finalVal = finalResults.dcaWeekly;
             else finalVal = finalResults.dcaMonthly;
 
-            const row = `<tr class="bg-stone-800 font-bold border-t border-stone-300">
+            const row = `<tr class="bg-stone-700 font-bold border-t border-stone-500">
                 <td class="${dateColor} py-1">Current</td>
                 <td class="text-stone-400">-</td>
                 <td class="${valColor}">$${lastH.price.toFixed(2)}</td>
@@ -658,10 +646,10 @@
                     
                     rebalanceEvents.push({ index: i, price: price, type: hitLower ? "Lower" : "Upper" });
                     logTable.innerHTML += `<tr>
-                        <td class="text-stone-500 py-1">${new Date(c.time).toLocaleDateString()}</td>
+                        <td class="text-stone-400 py-1">${new Date(c.time).toLocaleDateString()}</td>
                         <td class="text-amber-600 font-bold">Rebalance</td>
-                        <td class="text-stone-700">$${price.toFixed(2)}</td>
-                        <td class="text-xs text-stone-400">${(priceChangePct*100).toFixed(2)}% move</td>
+                        <td class="text-stone-300">$${price.toFixed(2)}</td>
+                        <td class="text-xs text-stone-500">${(priceChangePct*100).toFixed(2)}% move</td>
                     </tr>`;
                 }
 
