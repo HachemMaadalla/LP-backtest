@@ -22,7 +22,7 @@
 <body class="p-4 md:p-8 max-w-7xl mx-auto">
 
     <div class="mb-8">
-        <h1 class="text-3xl font-bold mb-2">LP Strategy Backtester (ETH/USDC)</h1>
+        <h1 class="text-3xl font-bold mb-2">LP Strategy Backtester</h1>
         <p class="text-slate-400">Simulate rebalancing strategies and compare Fees vs. Impermanent Loss vs. DCA.</p>
     </div>
 
@@ -32,6 +32,18 @@
             <h2 class="text-xl font-bold mb-4 border-b border-slate-700 pb-2">Strategy Settings</h2>
             
             <div class="flex flex-col gap-4">
+                <!-- Token Selector -->
+                <div class="input-group">
+                    <label class="text-sm">Select Token</label>
+                    <select id="tokenSelect" class="input-field">
+                        <option value="ETH">ETH (Ethereum)</option>
+                        <option value="BTC">BTC (Bitcoin)</option>
+                        <option value="AVAX">AVAX (Avalanche)</option>
+                        <option value="BNB">BNB (Binance Coin)</option>
+                        <option value="S">S (Sonic)</option>
+                    </select>
+                </div>
+
                 <div class="input-group">
                     <label class="text-sm">Initial Capital ($)</label>
                     <input type="number" id="initialCapital" value="10000" class="input-field">
@@ -58,6 +70,7 @@
                 <div class="input-group">
                     <label class="text-sm">Candle Interval</label>
                     <select id="candleInterval" class="input-field">
+                        <option value="5m">5 Minutes</option>
                         <option value="1h">1 Hour</option>
                         <option value="6h" selected>6 Hours</option>
                         <option value="1d">1 Day</option>
@@ -101,7 +114,7 @@
                     <div class="stat-value text-blue-400 text-xl" id="resHodl">$0.00</div>
                 </div>
                 <div class="card text-center px-2">
-                    <div class="stat-label">HODL (100%)</div>
+                    <div class="stat-label" id="resHodl100Label">HODL (100% ETH)</div>
                     <div class="stat-value text-yellow-400 text-xl" id="resHodl100">$0.00</div>
                 </div>
                 
@@ -161,6 +174,7 @@
     // --- Constants & Globals ---
     let chartInstance = null;
     let globalHistory = [];
+    let currentTokenSymbol = "ETH"; // Default
     
     // Global state for results
     let finalResults = {
@@ -256,7 +270,7 @@
             labelText = "LP vs HODL (50/50)";
         } else if (comparisonMode === 1) {
             compareVal = finalResults.hodl100;
-            labelText = "LP vs HODL (100%)";
+            labelText = `LP vs HODL (100% ${currentTokenSymbol})`;
         } else {
             // Use currently selected DCA mode
             if (dcaMode === 0) compareVal = finalResults.dcaDaily;
@@ -351,6 +365,17 @@
             const capital = parseFloat(document.getElementById('initialCapital').value);
             document.getElementById('resInitial').innerText = capital;
 
+            const token = document.getElementById('tokenSelect').value;
+            currentTokenSymbol = token; // Update global
+            
+            // Build Pair: Use USDC pairs. Fallback/Note: If Binance doesn't have USDC pair for ancient data, might need USDT.
+            // But user asked for USDC context. Most majors have USDC pairs now.
+            const symbol = token + "USDC"; 
+
+            // Update UI Labels immediately
+            const displayToken = token;
+            document.getElementById('resHodl100Label').innerText = `HODL (100% ${displayToken})`;
+
             const rangePct = parseFloat(document.getElementById('rangePct').value) / 100;
             const rebalanceThreshold = parseFloat(document.getElementById('rebalanceThreshold').value) / 100;
             const aprAnnual = parseFloat(document.getElementById('fixedApr').value) / 100;
@@ -366,8 +391,8 @@
             }
 
             // 2. Fetch Data
-            const rawData = await fetchBinanceData("ETHUSDC", interval, startDate, endDate);
-            if(rawData.length === 0) throw new Error("No data found for this range.");
+            const rawData = await fetchBinanceData(symbol, interval, startDate, endDate);
+            if(rawData.length === 0) throw new Error(`No data found for ${symbol} in this range.`);
 
             const candles = rawData.map(d => ({
                 time: d[0],
@@ -446,6 +471,7 @@
 
                 // Fees
                 let periodsPerDay = 1;
+                if (interval === '5m') periodsPerDay = 288; // 12 * 24
                 if (interval === '1h') periodsPerDay = 24;
                 if (interval === '6h') periodsPerDay = 4;
                 if (interval === '1d') periodsPerDay = 1;
@@ -547,6 +573,8 @@
         else if (dcaMode === 1) dcaData = history.map(h => h.dcaWeeklyVal);
         else dcaData = history.map(h => h.dcaMonthlyVal);
         
+        const displayToken = currentTokenSymbol;
+
         chartInstance = new Chart(ctx, {
             type: 'line',
             data: {
@@ -582,7 +610,7 @@
                         pointRadius: 0
                     },
                     {
-                        label: 'HODL (100% ETH)',
+                        label: `HODL (100% ${displayToken})`,
                         data: hodl100Data,
                         borderColor: '#facc15',
                         borderWidth: 2,
