@@ -91,6 +91,11 @@
                 <button onclick="runBacktest()" id="runBtn" class="btn text-center mt-2">
                     Run Backtest
                 </button>
+                
+                <button onclick="downloadReport()" id="dlBtn" class="btn bg-slate-700 hover:bg-slate-600 text-center mt-2 hidden">
+                    Download Report 📸
+                </button>
+                
                 <p id="statusMsg" class="text-sm text-center text-yellow-400 min-h-[20px]"></p>
             </div>
         </div>
@@ -555,6 +560,229 @@
         } finally {
             btn.disabled = false;
             btn.innerText = "Run Backtest";
+            
+            // Show download button if successful
+            if (!status.innerText) {
+                document.getElementById('dlBtn').classList.remove('hidden');
+            }
+        }
+    }
+
+    async function downloadReport() {
+        if (!chartInstance) return;
+        
+        const btn = document.getElementById('dlBtn');
+        const originalText = btn.innerText;
+        btn.innerText = "Generating...";
+        btn.disabled = true;
+
+        try {
+            const width = 1200;
+            const height = 1800;
+            const canvas = document.createElement('canvas');
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext('2d');
+
+            // 1. Background
+            ctx.fillStyle = '#0f172a'; // Slate-900 background
+            ctx.fillRect(0, 0, width, height);
+
+            // 2. Header
+            ctx.font = 'bold 48px sans-serif';
+            ctx.fillStyle = '#f8fafc'; // Slate-50
+            ctx.textAlign = 'center';
+            ctx.fillText('LP Strategy Backtest Report', width / 2, 80);
+            
+            // Removed Generated Date line
+            
+            // 3. Settings Box
+            const boxX = 50;
+            const boxY = 160;
+            const boxW = width - 100;
+            const boxH = 300; // Increased height to fit extra line
+            
+            ctx.fillStyle = '#1e293b'; // Slate-800
+            ctx.strokeStyle = '#334155'; // Slate-700
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            // Round rect simulation
+            ctx.moveTo(boxX + 20, boxY);
+            ctx.lineTo(boxX + boxW - 20, boxY);
+            ctx.quadraticCurveTo(boxX + boxW, boxY, boxX + boxW, boxY + 20);
+            ctx.lineTo(boxX + boxW, boxY + boxH - 20);
+            ctx.quadraticCurveTo(boxX + boxW, boxY + boxH, boxX + boxW - 20, boxY + boxH);
+            ctx.lineTo(boxX + 20, boxY + boxH);
+            ctx.quadraticCurveTo(boxX, boxY + boxH, boxX, boxY + boxH - 20);
+            ctx.lineTo(boxX, boxY + 20);
+            ctx.quadraticCurveTo(boxX, boxY, boxX + 20, boxY);
+            ctx.closePath();
+            ctx.fill();
+            ctx.stroke();
+
+            // Draw Settings Text
+            ctx.textAlign = 'left';
+            ctx.font = 'bold 32px sans-serif';
+            ctx.fillStyle = '#e2e8f0';
+            ctx.fillText('Configuration', boxX + 40, boxY + 50);
+
+            ctx.font = '28px sans-serif';
+            ctx.fillStyle = '#cbd5e1';
+            
+            // Col 1
+            let y = boxY + 110;
+            const col1X = boxX + 40;
+            const col2X = boxX + 550;
+            
+            const tokenVal = document.getElementById('tokenSelect').value;
+            const token = tokenVal === 'FTM' ? 'S' : tokenVal;
+            const cap = document.getElementById('initialCapital').value;
+            const range = document.getElementById('rangePct').value;
+            const thresh = document.getElementById('rebalanceThreshold').value;
+            const apr = document.getElementById('fixedApr').value;
+            const start = document.getElementById('startDate').value;
+            const end = document.getElementById('endDate').value;
+            const interval = document.getElementById('candleInterval').value;
+
+            // Format Dates & Duration
+            const sDate = new Date(start);
+            const eDate = new Date(end);
+            const dateOpts = { year: 'numeric', month: 'short', day: 'numeric' };
+            const startTxt = sDate.toLocaleDateString('en-US', dateOpts);
+            const endTxt = eDate.toLocaleDateString('en-US', dateOpts);
+            
+            const diffTime = Math.abs(eDate - sDate);
+            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+            let durationTxt = `${diffDays} days`;
+            if (diffDays > 60) {
+                durationTxt += ` (~${(diffDays / 30.44).toFixed(1)} months)`;
+            }
+
+            ctx.fillText(`Token: ${token}`, col1X, y); 
+            ctx.fillText(`Initial Capital: $${cap}`, col1X, y + 50); 
+            ctx.fillText(`APR Estimate: ${apr}%`, col1X, y + 100);
+
+            ctx.fillText(`Range: ±${range}%`, col2X, y); 
+            ctx.fillText(`Rebalance Threshold: ±${thresh}%`, col2X, y + 50); 
+            
+            // Split Period and Duration into two lines
+            ctx.fillText(`Period: ${startTxt} - ${endTxt}`, col2X, y + 100);
+            ctx.fillText(`(${durationTxt})`, col2X, y + 145);
+
+            // 4. Results Box
+            const resY = boxY + boxH + 40;
+            const resH = 320;
+            
+            ctx.fillStyle = '#1e293b';
+            ctx.beginPath();
+            ctx.moveTo(boxX + 20, resY);
+            ctx.lineTo(boxX + boxW - 20, resY);
+            ctx.quadraticCurveTo(boxX + boxW, resY, boxX + boxW, resY + 20);
+            ctx.lineTo(boxX + boxW, resY + resH - 20);
+            ctx.quadraticCurveTo(boxX + boxW, resY + resH, boxX + boxW - 20, resY + resH);
+            ctx.lineTo(boxX + 20, resY + resH);
+            ctx.quadraticCurveTo(boxX, resY + resH, boxX, resY + resH - 20);
+            ctx.lineTo(boxX, resY + 20);
+            ctx.quadraticCurveTo(boxX, resY, boxX + 20, resY);
+            ctx.closePath();
+            ctx.fill();
+            ctx.stroke();
+
+            ctx.font = 'bold 32px sans-serif';
+            ctx.fillStyle = '#e2e8f0';
+            ctx.fillText('Performance Results', boxX + 40, resY + 50);
+
+            // Result Columns
+            const fees = document.getElementById('resFees').innerText;
+            const pf = document.getElementById('resPortfolio').innerText;
+            const h50 = document.getElementById('resHodl').innerText;
+            const h100 = document.getElementById('resHodl100').innerText;
+            const dca = document.getElementById('resDca').innerText;
+            
+            // Grid layout for stats
+            ctx.font = '24px sans-serif';
+            
+            // Row 1
+            const r1y = resY + 120;
+            const r2y = resY + 230;
+            const c1 = boxX + 50, c2 = boxX + 420, c3 = boxX + 790;
+
+            // Fees
+            ctx.fillStyle = '#94a3b8'; ctx.fillText('Total Fees Earned', c1, r1y);
+            ctx.fillStyle = '#4ade80'; ctx.font = 'bold 40px sans-serif'; ctx.fillText(fees, c1, r1y + 50);
+
+            // Portfolio
+            ctx.font = '24px sans-serif'; ctx.fillStyle = '#94a3b8'; ctx.fillText('Final LP Value', c2, r1y);
+            ctx.fillStyle = '#e2e8f0'; ctx.font = 'bold 40px sans-serif'; ctx.fillText(pf, c2, r1y + 50);
+
+            // DCA
+            let dcaTxt = "DCA";
+            if(dcaMode === 0) dcaTxt += " (Daily)";
+            else if(dcaMode === 1) dcaTxt += " (Weekly)";
+            else dcaTxt += " (Monthly)";
+
+            ctx.font = '24px sans-serif'; ctx.fillStyle = '#94a3b8'; ctx.fillText(dcaTxt, c3, r1y);
+            ctx.fillStyle = '#a855f7'; ctx.font = 'bold 40px sans-serif'; ctx.fillText(dca, c3, r1y + 50);
+
+            // Row 2
+            // HODL 50
+            ctx.font = '24px sans-serif'; ctx.fillStyle = '#94a3b8'; ctx.fillText('HODL (50/50)', c1, r2y);
+            ctx.fillStyle = '#60a5fa'; ctx.font = 'bold 40px sans-serif'; ctx.fillText(h50, c1, r2y + 50);
+
+            // HODL 100
+            ctx.font = '24px sans-serif'; ctx.fillStyle = '#94a3b8'; ctx.fillText(`HODL (100% ${token})`, c2, r2y);
+            ctx.fillStyle = '#facc15'; ctx.font = 'bold 40px sans-serif'; ctx.fillText(h100, c2, r2y + 50);
+
+
+            // 5. Chart
+            // We need to wait for the chart image to load
+            const chartImgData = chartInstance.toBase64Image();
+            const chartImg = new Image();
+            chartImg.src = chartImgData;
+            
+            await new Promise(r => chartImg.onload = r);
+            
+            const chartY = resY + resH + 40;
+            const chartH = height - chartY - 120; // Leave space for footer
+            const chartW = width - 100;
+            
+            // Draw chart box background
+            ctx.fillStyle = '#1e293b';
+            ctx.beginPath();
+            ctx.moveTo(boxX + 20, chartY);
+            ctx.lineTo(boxX + boxW - 20, chartY);
+            ctx.quadraticCurveTo(boxX + boxW, chartY, boxX + boxW, chartY + 20);
+            ctx.lineTo(boxX + boxW, chartY + chartH - 20);
+            ctx.quadraticCurveTo(boxX + boxW, chartY + chartH, boxX + boxW - 20, chartY + chartH);
+            ctx.lineTo(boxX + 20, chartY + chartH);
+            ctx.quadraticCurveTo(boxX, chartY + chartH, boxX, chartY + chartH - 20);
+            ctx.lineTo(boxX, chartY + 20);
+            ctx.quadraticCurveTo(boxX, chartY, boxX + 20, chartY);
+            ctx.closePath();
+            ctx.fill();
+            ctx.stroke();
+
+            // Draw Chart Image
+            ctx.drawImage(chartImg, boxX + 20, chartY + 20, chartW - 40, chartH - 40);
+
+            // 6. Watermark
+            ctx.textAlign = 'right';
+            ctx.font = 'bold 30px sans-serif';
+            ctx.fillStyle = '#64748b'; // Slate-500
+            ctx.fillText('Made by lmoul', width - 50, height - 40);
+
+            // 7. Download
+            const link = document.createElement('a');
+            link.download = `backtest_${token}_${Date.now()}.png`;
+            link.href = canvas.toDataURL('image/png');
+            link.click();
+
+        } catch(e) {
+            console.error(e);
+            alert("Error generating report");
+        } finally {
+            btn.innerText = originalText;
+            btn.disabled = false;
         }
     }
 
